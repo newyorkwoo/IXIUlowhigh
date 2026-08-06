@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>那斯達克指數 (2000至今) - 10%回撤區間</title>
+    <!-- Include ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+        }
+        #main-header {
+            text-align: center;
+            padding: 20px 0;
+            background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        #main-header h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 2px;
+        }
+        #chart-container {
+            width: 100%;
+            height: calc(100vh - 80px);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #chart {
+            width: 100%;
+            height: 100%;
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+        }
+        #status-card {
+            width: 95%;
+            margin: 20px auto 0;
+            background: #2d2d2d;
+            border-radius: 12px;
+            padding: 20px 28px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            flex-wrap: wrap;
+            border-left: 6px solid #7f8c8d;
+        }
+        #status-score {
+            font-size: 48px;
+            font-weight: bold;
+            line-height: 1;
+            min-width: 90px;
+        }
+        #status-score-label {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+        #status-badge {
+            font-size: 20px;
+            font-weight: bold;
+            padding: 6px 16px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        #status-allocation {
+            font-size: 15px;
+            color: #ccc;
+        }
+        #status-explain {
+            font-size: 13px;
+            color: #999;
+            width: 100%;
+            border-top: 1px solid #444;
+            padding-top: 12px;
+            margin-top: 4px;
+            line-height: 1.7;
+        }
+        #status-explain b { color: #ddd; }
+        #status-divider {
+            width: 1px;
+            align-self: stretch;
+            background: #444;
+        }
+        #status-exit-badge {
+            font-size: 20px;
+            font-weight: bold;
+            padding: 6px 16px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        #status-exit-detail {
+            font-size: 15px;
+            color: #ccc;
+        }
+        #table-scroll {
+            width: 95%;
+            margin: 30px auto;
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        #table-scroll table {
+            width: 100%;
+            min-width: 900px;
+            border-collapse: collapse;
+            color: #ccc;
+            text-align: center;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            #main-header {
+                padding: 14px 10px;
+            }
+            #main-header h1 {
+                font-size: 16px;
+                letter-spacing: 0.5px;
+                line-height: 1.4;
+            }
+            #chart-container {
+                height: 70vh;
+                padding: 10px;
+            }
+            #status-card {
+                width: auto;
+                margin: 14px 10px 0;
+                padding: 14px 16px;
+                gap: 14px;
+            }
+            #status-score {
+                font-size: 34px;
+                min-width: 70px;
+            }
+            #status-badge, #status-exit-badge {
+                font-size: 15px;
+                padding: 5px 12px;
+            }
+            #status-allocation, #status-exit-detail {
+                font-size: 13px;
+            }
+            #status-explain {
+                font-size: 12px;
+                line-height: 1.6;
+            }
+            #status-divider {
+                display: none;
+            }
+            #table-scroll {
+                width: auto;
+                margin: 20px 10px;
+                padding: 14px 12px;
+            }
+            #table-scroll h3 {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="main-header">
+        <h1>那斯達克 (NASDAQ) 2000年至今 - 波段下跌大於10%區間分析</h1>
+    </div>
+    <div id="status-card">
+        <div>
+            <div id="status-score">--</div>
+            <div id="status-score-label">CCS 複合投降分數 (0~100)</div>
+        </div>
+        <div>
+            <div id="status-badge">載入中...</div>
+            <div id="status-allocation" style="margin-top: 8px;"></div>
+        </div>
+        <div id="status-divider"></div>
+        <div>
+            <div id="status-exit-badge">載入中...</div>
+            <div id="status-exit-detail" style="margin-top: 8px;"></div>
+        </div>
+        <div id="status-explain">
+            <b>進場／加碼看 CCS：</b> 把「這次回檔有多嚴重」拿去跟歷史上所有回檔比排名算出來的分數，只有在指數處於「從波段高點下跌中」時才會 &gt; 0，平時創新高或盤整時是 0 分。
+            對照建倉層級 —— <b style="color:#7f8c8d">0~45 觀望(0%)</b>、
+            <b style="color:#f1c40f">45~60 試單(10%)</b>、
+            <b style="color:#f39c12">60~80 波段底部(40~70%)</b>、
+            <b style="color:#ff4d4d">80~100 ALL IN(100%)</b>。
+            <br>
+            <b>加碼確認看反彈幅度＋連續站穩年線：</b> 從最近一次低點反彈的幅度，配合是否連續3天站回年線(MA240)——
+            <b style="color:#7f8c8d">反彈 &lt;15% 持有續抱</b>、
+            <b style="color:#3498db">反彈 &ge;15% 但還沒連續站穩年線就先減碼停利</b>、
+            <b style="color:#2ecc71">連續3天站回年線代表趨勢確認，可以加碼（歷史回測：此後中位數1年還有+15%、2年+37%，並非出場訊號）</b>。
+            <br>
+            下方圖表紅色曲線(在K線圖下方的小圖)是 CCS 隨時間的變化，橘/黃/紅三角形是建倉訊號點；再往下的表格是歷史上每一次回檔的完整數據對照。
+        </div>
+    </div>
+    <div id="chart-container">
+        <div id="chart"></div>
+    </div>
+
+    <div id="table-scroll">
+        <h3 style="color: #fff; margin-top: 0; text-align: center;">歷史波段回撤 (>10%) 完整統計報表</h3>
+        <table>
+            <thead>
+                <tr style="border-bottom: 2px solid #555; background: #1a1a1a;">
+                    <th style="padding: 12px;">波段區間</th>
+                    <th style="padding: 12px;">高點 -> 低點</th>
+                    <th style="padding: 12px;">波段跌幅</th>
+                    <th style="padding: 12px;">下跌天數</th>
+                    <th style="padding: 12px;">每日下跌速度</th>
+                    <th style="padding: 12px;">谷底前5日跌速</th>
+                    <th style="padding: 12px;">VIX 變化 (起跌 -> 最高)</th>
+                    <th style="padding: 12px;">谷底前5日 VIX 變化</th>
+                    <th style="padding: 12px;">RSI60 變化 (起跌 -> 最低)</th>
+                    <th style="padding: 12px;">谷底前5日 RSI60 變化</th>
+                    <th style="padding: 12px; color: #ffcc00;">CCS 複合投降分數</th>
+                    <th style="padding: 12px; color: #00da3c;">金字塔資金分配建議</th>
+                </tr>
+            </thead>
+            <tbody id="dataTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        var chartDom = document.getElementById('chart');
+        var myChart = echarts.init(chartDom, 'dark');
+        var option;
+
+        myChart.showLoading({
+            text: '數據加載中...',
+            color: '#4ea397',
+            textColor: '#fff',
+            maskColor: 'rgba(30, 30, 30, 0.8)'
+        });
+
+        fetch('/api/data')
+            .then(response => response.json())
+            .then(data => {
+                myChart.hideLoading();
+
+                const kline = data.kline;
+                const periods = data.drawdown_periods;
+
+                // 當日狀態卡：直接告訴使用者「今天」該做什麼，不用自己去圖上找
+                const latest = kline[kline.length - 1];
+                const tierMeta = {
+                    0: { color: '#7f8c8d', bg: 'rgba(127,140,141,0.15)', text: '觀望' },
+                    1: { color: '#f1c40f', bg: 'rgba(241,196,15,0.15)', text: '⚠️ 試單建倉' },
+                    2: { color: '#f39c12', bg: 'rgba(243,156,18,0.15)', text: '📉 波段底部' },
+                    3: { color: '#ff4d4d', bg: 'rgba(255,77,77,0.15)', text: '🔥 ALL IN' },
+                };
+                const allocText = { 0: '建議倉位：0%（保留現金觀望）', 1: '建議倉位：10%（初步試單）', 2: '建議倉位：40% ~ 70%（分批強力加碼）', 3: '建議倉位：100%（史詩重倉）' };
+                const meta = tierMeta[latest.tier] || tierMeta[0];
+
+                document.getElementById('status-score').textContent = latest.ccs.toFixed(1);
+                document.getElementById('status-score').style.color = meta.color;
+                const badgeEl = document.getElementById('status-badge');
+                badgeEl.textContent = meta.text;
+                badgeEl.style.color = meta.color;
+                badgeEl.style.background = meta.bg;
+                document.getElementById('status-allocation').textContent =
+                    `${latest.date} 收盤 ${latest.close.toFixed(0)} 點　${allocText[latest.tier]}`;
+                document.getElementById('status-card').style.borderLeftColor = meta.color;
+
+                // 加碼確認狀態：反彈幅度 + 是否連續3天站回年線
+                const exitMeta = {
+                    0: { color: '#7f8c8d', bg: 'rgba(127,140,141,0.15)', text: '持有／續抱' },
+                    1: { color: '#3498db', bg: 'rgba(52,152,219,0.15)', text: '💰 減碼停利' },
+                    2: { color: '#2ecc71', bg: 'rgba(46,204,113,0.15)', text: '📈 加碼確認' },
+                };
+                const exitM = exitMeta[latest.exit_stage] || exitMeta[0];
+                const exitBadgeEl = document.getElementById('status-exit-badge');
+                exitBadgeEl.textContent = exitM.text;
+                exitBadgeEl.style.color = exitM.color;
+                exitBadgeEl.style.background = exitM.bg;
+                document.getElementById('status-exit-detail').textContent =
+                    `距最近低點反彈 ${latest.recovery_pct.toFixed(1)}%　` +
+                    (latest.close > latest.ma240 ? '已站回年線(MA240)之上' : '尚未站回年線(MA240)');
+
+                const tableBody = document.getElementById('dataTableBody');
+                [...periods].reverse().forEach(p => {
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid #444';
+                    
+                    const vixColor = p.vix_max > 35 ? '#00d2ff' : (p.vix_max > 28 ? '#f39c12' : '#ccc');
+                    const rsiColor = p.rsi_min <= 30 ? '#00d2ff' : (p.rsi_min <= 42 ? '#f39c12' : '#ccc');
+                    const speedColor = (p.drop_speed * -100) >= 8.0 ? '#9c27b0' : '#ccc';
+                    const finalRoc5Color = (p.final_roc5_speed * -100) >= 1.0 ? '#9c27b0' : '#ccc';
+                    
+                    const finalVixDiff = p.final_vix_5d_end - p.final_vix_5d_start;
+                    const finalRsiDiff = p.final_rsi_5d_end - p.final_rsi_5d_start;
+                    
+                    const finalVixColor = finalVixDiff >= 10 ? '#ff4d4d' : (finalVixDiff >= 5 ? '#f39c12' : '#ccc');
+                    const finalRsiColor = finalRsiDiff <= -10 ? '#00d2ff' : (finalRsiDiff <= -5 ? '#f39c12' : '#ccc');
+
+                    const ccs = p.ccs || 0;
+                    let ccsColor = '#ccc';
+                    let ccsWeight = 'normal';
+                    let ccsBadge = '';
+                    if (ccs >= 80) { ccsColor = '#ff4d4d'; ccsWeight = 'bold'; ccsBadge = '🔥 ALL IN'; }
+                    else if (ccs >= 60) { ccsColor = '#f39c12'; ccsWeight = 'bold'; ccsBadge = '📉 波段底部'; }
+                    else if (ccs >= 45) { ccsColor = '#f1c40f'; ccsBadge = '⚠️ 試單'; }
+                    else { ccsBadge = '正常回檔'; }
+
+                    let allocation = '';
+                    let allocColor = '#ccc';
+                    if (ccs >= 80) {
+                        allocation = '100%<br><span style="font-size:0.75em;">(史詩重倉 / ALL IN)</span>';
+                        allocColor = '#ff4d4d';
+                    } else if (ccs >= 60) {
+                        allocation = '40% ~ 70%<br><span style="font-size:0.75em;">(分批強力加碼)</span>';
+                        allocColor = '#f39c12';
+                    } else if (ccs >= 45) {
+                        allocation = '10%<br><span style="font-size:0.75em;">(初步試單建倉)</span>';
+                        allocColor = '#f1c40f';
+                    } else {
+                        allocation = '0%<br><span style="font-size:0.75em;">(保留現金觀望)</span>';
+                        allocColor = '#7f8c8d';
+                    }
+
+                    row.innerHTML = `
+                        <td style="padding: 10px;">${p.start_date} ~ ${p.end_date}</td>
+                        <td style="padding: 10px; color: #a29bfe;">${p.peak_val.toFixed(2)} &rarr; ${p.trough_val.toFixed(2)}</td>
+                        <td style="padding: 10px; color: #ff6666; font-weight: bold;">${(p.drop_pct * -100).toFixed(1)}%</td>
+                        <td style="padding: 10px;">${p.drop_days} 天</td>
+                        <td style="padding: 10px; color: ${speedColor};">${(p.drop_speed * -100).toFixed(2)}% / 天</td>
+                        <td style="padding: 10px; color: ${finalRoc5Color}; font-weight: bold;">${(p.final_roc5_speed * -100).toFixed(2)}% / 天</td>
+                        <td style="padding: 10px; color: ${vixColor};">${(p.vix_start || 0).toFixed(1)} 飆至 <strong>${(p.vix_max || 0).toFixed(1)}</strong></td>
+                        <td style="padding: 10px; color: ${finalVixColor};">${(p.final_vix_5d_start || 0).toFixed(1)} &rarr; ${(p.final_vix_5d_end || 0).toFixed(1)} <br><span style="font-size:0.85em;">(${(finalVixDiff > 0 ? '+' : '')}${finalVixDiff.toFixed(1)})</span></td>
+                        <td style="padding: 10px; color: ${rsiColor};">${(p.rsi_start || 0).toFixed(1)} 殺至 <strong>${(p.rsi_min || 0).toFixed(1)}</strong></td>
+                        <td style="padding: 10px; color: ${finalRsiColor};">${(p.final_rsi_5d_start || 0).toFixed(1)} &rarr; ${(p.final_rsi_5d_end || 0).toFixed(1)} <br><span style="font-size:0.85em;">(${(finalRsiDiff > 0 ? '+' : '')}${finalRsiDiff.toFixed(1)})</span></td>
+                        <td style="padding: 10px; color: ${ccsColor}; font-weight: ${ccsWeight}; font-size: 1.1em; background-color: rgba(255,255,255,0.05); border-radius: 4px;">
+                            ${ccs.toFixed(1)}<br><span style="font-size:0.75em; color: #fff; font-weight: normal;">${ccsBadge}</span>
+                        </td>
+                        <td style="padding: 10px; color: ${allocColor}; font-weight: bold; background-color: rgba(0,0,0,0.2);">
+                            ${allocation}
+                        </td>
+                    `;
+                    
+                    row.addEventListener('mouseenter', () => row.style.background = '#3a3a3a');
+                    row.addEventListener('mouseleave', () => row.style.background = 'transparent');
+                    
+                    tableBody.appendChild(row);
+                });
+
+                const dates = kline.map(item => item.date);
+                const kData = kline.map(item => [item.open, item.close, item.low, item.high]);
+                const ma60Data = kline.map(item => item.ma60);
+                const ma240Data = kline.map(item => item.ma240);
+                const ccsData = kline.map(item => item.ccs);
+                const markAreaData = periods.map(p => [
+                    { xAxis: p.start_date },
+                    { xAxis: p.end_date }
+                ]);
+
+                // 分批建倉/加碼訊號：以後端 signals.py 算出的 CCS tier 為準
+                const tierColor = { 1: '#f1c40f', 2: '#f39c12', 3: '#ff4d4d' };
+                const tierSize = { 1: 8, 2: 14, 3: 20 };
+
+                const buySignals = [];
+                let lastSignalPrice = null;
+                let emptyDays = 0;
+
+                kline.forEach((item) => {
+                    const tier = item.tier || 0;
+
+                    if (lastSignalPrice !== null) {
+                        if (tier === 0) {
+                            emptyDays++;
+                        } else {
+                            emptyDays = 0;
+                        }
+
+                        if (emptyDays > 60 || item.close > lastSignalPrice * 1.20) {
+                            lastSignalPrice = null;
+                            emptyDays = 0;
+                        }
+                    }
+
+                    if (tier >= 1) {
+                        if (lastSignalPrice === null || item.close <= lastSignalPrice * 0.95) {
+                            buySignals.push({
+                                value: [item.date, item.low * 0.98], // 放置在最低價下方2%
+                                itemStyle: { color: tierColor[tier] },
+                                symbolSize: tierSize[tier]
+                            });
+
+                            lastSignalPrice = item.close;
+                        }
+                    }
+                });
+
+                // 加碼確認訊號：exit_stage 從 0/1 轉成 2(連續3天站回年線)的那一天標記一次，直到下一輪回檔重新武裝
+                const exitSignals = [];
+                {
+                    let prevStage = 0;
+                    let armed = false; // 曾經進入過減碼/持有階段(代表有戰術倉位)，加碼確認訊號才有意義
+                    kline.forEach((item) => {
+                        const stage = item.exit_stage || 0;
+                        if (item.tier >= 1) armed = true;
+                        if (armed && stage === 2 && prevStage !== 2) {
+                            exitSignals.push({
+                                value: [item.date, item.high * 1.03],
+                                itemStyle: { color: '#2ecc71', borderColor: '#fff', borderWidth: 0.5 }
+                            });
+                            armed = false;
+                        }
+                        prevStage = stage;
+                    });
+                }
+
+                const markPointData = periods.map(p => {
+                    const ccs = p.ccs || 0;
+                    if (ccs < 45) return null;
+
+                    return {
+                        coord: [p.end_date, p.trough_val],
+                        value: ccs.toFixed(1),
+                        symbol: 'pin',
+                        symbolSize: 40,
+                        symbolOffset: [0, '15%'],
+                        itemStyle: { color: 'rgba(255,255,255,0.2)', borderColor: '#fff', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            color: '#fff',
+                            fontSize: 9,
+                            formatter: `Max\n${ccs.toFixed(0)}`
+                        }
+                    };
+                }).filter(item => item !== null);
+
+                const isMobile = window.innerWidth <= 768;
+
+                option = {
+                    backgroundColor: '#1e1e1e',
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: { type: 'cross' },
+                        confine: true
+                    },
+                    axisPointer: {
+                        link: {xAxisIndex: 'all'}
+                    },
+                    legend: {
+                        data: ['NASDAQ K線', 'MA60 (季線)', 'MA240 (年線)', 'CCS 複合投降分數', '分批建倉訊號', '加碼確認訊號'],
+                        textStyle: { color: '#ccc', fontSize: isMobile ? 10 : 12 },
+                        type: isMobile ? 'scroll' : 'plain',
+                        itemWidth: isMobile ? 14 : 25,
+                        itemHeight: isMobile ? 10 : 14,
+                        top: isMobile ? 0 : 'auto'
+                    },
+                    grid: [
+                        { left: isMobile ? '2%' : '5%', right: isMobile ? '3%' : '5%', top: isMobile ? '16%' : '10%', height: isMobile ? '52%' : '60%' },
+                        { left: isMobile ? '2%' : '5%', right: isMobile ? '3%' : '5%', top: '75%', height: '15%' }
+                    ],
+                    xAxis: [
+                        {
+                            type: 'category',
+                            data: dates,
+                            scale: true,
+                            boundaryGap: false,
+                            axisLine: { onZero: false, lineStyle: { color: '#8392A5' } },
+                            axisLabel: { fontSize: isMobile ? 9 : 12 },
+                            splitLine: { show: false },
+                            min: 'dataMin',
+                            max: 'dataMax'
+                        },
+                        {
+                            type: 'category',
+                            gridIndex: 1,
+                            data: dates,
+                            scale: true,
+                            boundaryGap: false,
+                            axisLine: { onZero: false, lineStyle: { color: '#8392A5' } },
+                            axisTick: { show: false },
+                            splitLine: { show: false },
+                            axisLabel: { show: false },
+                            min: 'dataMin',
+                            max: 'dataMax'
+                        }
+                    ],
+                    yAxis: [
+                        {
+                            scale: true,
+                            splitArea: { show: true, areaStyle: { color: ['rgba(250,250,250,0.01)', 'rgba(200,200,200,0.01)'] } },
+                            axisLine: { lineStyle: { color: '#8392A5' } },
+                            axisLabel: { fontSize: isMobile ? 9 : 12 },
+                            splitLine: { lineStyle: { color: '#333' } }
+                        },
+                        {
+                            gridIndex: 1,
+                            scale: true,
+                            splitNumber: 3,
+                            axisLine: { lineStyle: { color: '#8392A5' } },
+                            splitLine: { show: false },
+                            axisLabel: { show: false }
+                        }
+                    ],
+                    dataZoom: [
+                        { type: 'inside', xAxisIndex: [0, 1], start: isMobile ? 92 : 80, end: 100 },
+                        { show: true, type: 'slider', xAxisIndex: [0, 1], top: '92%', start: isMobile ? 92 : 80, end: 100, height: isMobile ? 18 : 20, textStyle: { color: '#8392A5', fontSize: isMobile ? 9 : 12 } }
+                    ],
+                    series: [
+                        {
+                            name: 'NASDAQ K線',
+                            type: 'candlestick',
+                            data: kData,
+                            itemStyle: {
+                                color: '#ec0000',
+                                color0: '#00da3c',
+                                borderColor: '#8A0000',
+                                borderColor0: '#008F28'
+                            },
+                            markArea: {
+                                silent: true,
+                                itemStyle: {
+                                    color: 'rgba(255, 60, 60, 0.15)'
+                                },
+                                data: markAreaData
+                            },
+                            markPoint: {
+                                data: markPointData
+                            }
+                        },
+                        {
+                            name: '分批建倉訊號',
+                            type: 'scatter',
+                            symbol: 'triangle',
+                            symbolRotate: 0,
+                            data: buySignals,
+                            itemStyle: {
+                                opacity: 0.9
+                            },
+                            zlevel: 3
+                        },
+                        {
+                            name: '加碼確認訊號',
+                            type: 'scatter',
+                            symbol: 'triangle',
+                            symbolRotate: 0,
+                            symbolSize: 16,
+                            data: exitSignals,
+                            itemStyle: {
+                                opacity: 0.95
+                            },
+                            zlevel: 4
+                        },
+                        {
+                            name: 'MA60 (季線)',
+                            type: 'line',
+                            data: ma60Data,
+                            smooth: true,
+                            showSymbol: false,
+                            lineStyle: {
+                                width: 1.5,
+                                color: '#f39c12'
+                            }
+                        },
+                        {
+                            name: 'MA240 (年線)',
+                            type: 'line',
+                            data: ma240Data,
+                            smooth: true,
+                            showSymbol: false,
+                            lineStyle: {
+                                width: 1.5,
+                                color: '#9c27b0'
+                            }
+                        },
+                        {
+                            name: 'CCS 複合投降分數',
+                            type: 'line',
+                            xAxisIndex: 1,
+                            yAxisIndex: 1,
+                            data: ccsData,
+                            smooth: true,
+                            showSymbol: false,
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(255, 77, 77, 0.8)' },
+                                    { offset: 1, color: 'rgba(255, 77, 77, 0.05)' }
+                                ])
+                            },
+                            lineStyle: { width: 1.5, color: '#ff4d4d' },
+                            markLine: {
+                                symbol: ['none', 'none'],
+                                data: [
+                                    { yAxis: 45, lineStyle: { color: '#f1c40f', type: 'dashed' }, label: { show: true, position: 'end', formatter: '45 試單', color: '#f1c40f', fontSize: 10 } },
+                                    { yAxis: 60, lineStyle: { color: '#f39c12', type: 'dashed' }, label: { show: true, position: 'end', formatter: '60 波段底部', color: '#f39c12', fontSize: 10 } },
+                                    { yAxis: 80, lineStyle: { color: '#ff4d4d', type: 'dashed' }, label: { show: true, position: 'end', formatter: '80 ALL IN', color: '#ff4d4d', fontSize: 10 } }
+                                ]
+                            }
+                        },
+                    ]
+                };
+
+                myChart.setOption(option);
+            })
+            .catch(err => {
+                console.error(err);
+                alert('加載數據失敗');
+                myChart.hideLoading();
+            });
+
+        window.addEventListener('resize', function() {
+            myChart.resize();
+        });
+    </script>
+</body>
+</html>
