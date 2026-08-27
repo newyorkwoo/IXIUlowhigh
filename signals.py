@@ -188,3 +188,10 @@ EXIT_STAGE_LABELS = {
     1: '減碼／停利一部分',
     2: '加碼確認／趨勢站穩',
 }
+
+# 核心+衛星回測的「子彈重置」規則（見 analysis/backtest.py）：
+#   'new_high' 舊版，收盤創新高子彈才補滿歸零——長熊市裡子彈會一路扛滿到收復失土
+#   'exit2'    連續站穩年線(ExitStage==2)就把子彈歸零，重置更快，回撤也更小
+# RESERVE_PROFIT_TAKE_RATIO：'exit2' 模式下，ExitStage==1（反彈>=15%但還沒站穩年線）
+# 時把尚未歸零的子彈部位打的折扣，模擬「先落袋一部分」。
+RESERVE_PROFIT_TAKE_RATIO = 0.5
