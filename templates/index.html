@@ -83,10 +83,45 @@
             line-height: 1.7;
         }
         #status-explain b { color: #ddd; }
-        #status-divider {
-            width: 1px;
-            align-self: stretch;
-            background: #444;
+        #mode-toggle {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+        }
+        .mode-btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #1a1a1a;
+            color: #999;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .mode-btn.active {
+            border-color: #4ea397;
+            background: rgba(78,163,151,0.15);
+            color: #4ea397;
+        }
+        .status-metric-row {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            flex-wrap: wrap;
+        }
+        .status-metric-row[hidden] {
+            display: none;
+        }
+        #status-summary {
+            width: 100%;
+            font-size: 16px;
+            line-height: 1.6;
+            padding: 14px 16px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
         }
         #status-exit-badge {
             font-size: 20px;
@@ -154,8 +189,14 @@
                 font-size: 12px;
                 line-height: 1.6;
             }
-            #status-divider {
-                display: none;
+            .mode-btn {
+                font-size: 12px;
+                padding: 7px 8px;
+                min-width: 0;
+            }
+            #status-summary {
+                font-size: 13px;
+                padding: 10px 12px;
             }
             #table-scroll {
                 width: auto;
@@ -173,32 +214,55 @@
         <h1>那斯達克 (NASDAQ) 2000年至今 - 波段下跌大於10%區間分析</h1>
     </div>
     <div id="status-card">
-        <div>
-            <div id="status-score">--</div>
-            <div id="status-score-label">CCS 複合投降分數 (0~100)</div>
+        <div id="mode-toggle">
+            <button class="mode-btn" id="mode-btn-long" data-mode="long">📌 我是長期投資人</button>
+            <button class="mode-btn" id="mode-btn-swing" data-mode="swing">⚡ 我是波段操作者</button>
         </div>
-        <div>
-            <div id="status-badge">載入中...</div>
-            <div id="status-allocation" style="margin-top: 8px;"></div>
+        <div id="status-summary">資料載入中...</div>
+        <div id="ccs-block" class="status-metric-row">
+            <div>
+                <div id="status-score">--</div>
+                <div id="status-score-label">CCS 複合投降分數 (0~100)</div>
+            </div>
+            <div>
+                <div id="status-badge">載入中...</div>
+                <div id="status-allocation" style="margin-top: 8px;"></div>
+            </div>
         </div>
-        <div id="status-divider"></div>
-        <div>
-            <div id="status-exit-badge">載入中...</div>
-            <div id="status-exit-detail" style="margin-top: 8px;"></div>
+        <div id="exit-block" class="status-metric-row" hidden>
+            <div>
+                <div id="status-exit-badge">載入中...</div>
+                <div id="status-exit-detail" style="margin-top: 8px;"></div>
+            </div>
         </div>
         <div id="status-explain">
-            <b>進場／加碼看 CCS：</b> 把「這次回檔有多嚴重」拿去跟歷史上所有回檔比排名算出來的分數，只有在指數處於「從波段高點下跌中」時才會 &gt; 0，平時創新高或盤整時是 0 分。
-            對照建倉層級 —— <b style="color:#7f8c8d">0~45 觀望(0%)</b>、
-            <b style="color:#f1c40f">45~60 試單(10%)</b>、
-            <b style="color:#f39c12">60~80 波段底部(40~70%)</b>、
-            <b style="color:#ff4d4d">80~100 ALL IN(100%)</b>。
-            <br>
-            <b>加碼確認看反彈幅度＋連續站穩年線：</b> 從最近一次低點反彈的幅度，配合是否連續3天站回年線(MA240)——
-            <b style="color:#7f8c8d">反彈 &lt;15% 持有續抱</b>、
-            <b style="color:#3498db">反彈 &ge;15% 但還沒連續站穩年線就先減碼停利</b>、
-            <b style="color:#2ecc71">連續3天站回年線代表趨勢確認，可以加碼（歷史回測：此後中位數1年還有+15%、2年+37%，並非出場訊號）</b>。
-            <br>
-            下方圖表紅色曲線(在K線圖下方的小圖)是 CCS 隨時間的變化，橘/黃/紅三角形是建倉訊號點；再往下的表格是歷史上每一次回檔的完整數據對照。
+            <div id="explain-long">
+                <b>長期投資／定期定額只看 CCS 複合投降分數：</b>
+                把「這次回檔有多嚴重」拿去跟歷史上所有回檔比排名算出來的分數，平常維持 <b style="color:#7f8c8d">0 分（觀望）</b>是正常現象——只有指數正在「從波段高點下跌中」才會啟動，創新高或盤整時本來就是 0 分，不是訊號故障。
+                分數越高代表這次下跌的恐慌程度在歷史上排名越前面，是相對少見的加碼機會：
+                <b style="color:#f1c40f">45~60 試單，可小比例(10%)加碼</b>、
+                <b style="color:#f39c12">60~80 波段底部，可分批(40~70%)加碼</b>、
+                <b style="color:#ff4d4d">80~100 ALL IN，歷史級恐慌，可重壓布局</b>。
+                平常沒事就是續抱／定期定額，只有分數衝高時才是難得的額外加碼時機。
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #444;">
+                    <b>資金怎麼分配（核心＋衛星）：</b>
+                    這個網站的回測模型（<code>analysis/backtest.py</code>）用的是「70% 核心＋30% 衛星子彈」——
+                    <b style="color:#4ea397">核心 70%</b>：永遠持有、正常定期定額，不管 CCS 顯示什麼都不動；
+                    <b style="color:#4ea397">衛星 30%</b>：平常按兵不動（現金／貨幣基金），只有 CCS 觸發才依等級動用——觀望動用 0%、試單動用 10%、波段底部動用 55%、ALL IN 動用 100%（換算成整體資產曝險約落在 70%~100% 之間）。子彈用掉後，等右邊「連續3天站穩年線」確認翻多才補滿歸零，準備迎接下一次危機。
+                    <br>
+                    <b>誠實講回測結果：</b>2000~2026 那斯達克回測顯示，這套 70/30 策略的年化報酬（約 6.0~6.2%）其實略低於 100% 無腦買進持有（約 7.2%），它真正換到的是把最大回撤從 Buy &amp; Hold 的 -78% 降到約 -64%。也就是說：如果你能扛住帳面腰斬也不賣，單純定期定額 100% 投入的長期報酬反而更好；這套 70/30 分配是給那些會在大跌時恐慌認賠、抱不住 Buy &amp; Hold 的人，用犧牲一點報酬換比較撐得住的心理容忍空間。
+                </div>
+            </div>
+            <div id="explain-swing" hidden>
+                <b>波段／戰術操作只看加碼確認燈號：</b>
+                看從最近一次低點反彈的幅度，配合是否連續3天站回年線(MA240)，判斷手上部位該怎麼處理——
+                <b style="color:#7f8c8d">⚪ 持有／續抱</b>：反彈 &lt;15%，恐慌尚未確認結束，照原計畫繼續操作；
+                <b style="color:#3498db">💰 減碼停利</b>：反彈 &ge;15% 但還沒連續站穩年線，趨勢仍不明朗，建議先落袋一部分；
+                <b style="color:#2ecc71">📈 加碼確認／趨勢站穩</b>：連續3天站回年線，代表空頭結構結束、趨勢翻多，可以續抱或加碼（歷史回測：此後中位數1年還有+15%、2年+37%），這是趨勢確認訊號，並非出場訊號。
+            </div>
+            <div style="margin-top: 10px;">
+                下方圖表紅色曲線(在K線圖下方的小圖)是 CCS 隨時間的變化，橘/黃/紅三角形是建倉訊號點，綠色三角形是加碼確認訊號點；再往下的表格是歷史上每一次回檔的完整數據對照。
+            </div>
         </div>
     </div>
     <div id="chart-container">
@@ -234,6 +298,63 @@
         var myChart = echarts.init(chartDom, 'dark');
         var option;
 
+        // 長期投資 vs 波段操作模式：切換右上角文案，不重新抓資料
+        let latestData = null;
+        let currentMode = 'long';
+        try { currentMode = localStorage.getItem('dashboardMode') || 'long'; } catch (e) {}
+
+        function renderSummary(mode) {
+            document.getElementById('mode-btn-long').classList.toggle('active', mode === 'long');
+            document.getElementById('mode-btn-swing').classList.toggle('active', mode === 'swing');
+            document.getElementById('explain-long').hidden = mode !== 'long';
+            document.getElementById('explain-swing').hidden = mode !== 'swing';
+            // 長期投資人只看 CCS，波段操作者只看加碼確認，兩個區塊不同時出現
+            document.getElementById('ccs-block').hidden = mode !== 'long';
+            document.getElementById('exit-block').hidden = mode !== 'swing';
+
+            if (!latestData) return;
+            const tier = latestData.tier || 0;
+            const stage = latestData.exit_stage || 0;
+            const ccs = latestData.ccs || 0;
+            const summaryEl = document.getElementById('status-summary');
+            const cardEl = document.getElementById('status-card');
+
+            if (mode === 'long') {
+                const longText = {
+                    0: { color: '#7f8c8d', text: `⚪ 觀望 —— CCS ${ccs.toFixed(1)} 分，目前沒有出現具規模的恐慌性下跌，維持 0 分是正常現象，安心續抱原本的長期持有／定期定額計畫即可。` },
+                    1: { color: '#f1c40f', text: `⚠️ 試單 —— CCS ${ccs.toFixed(1)} 分，開始出現一些恐慌賣壓，若手上有閒錢，可以考慮小比例(10%)試著加碼。` },
+                    2: { color: '#f39c12', text: `📉 波段底部 —— CCS ${ccs.toFixed(1)} 分，恐慌程度已達歷史上多數真正底部的水準，是長期投資人少見的加碼時機，可考慮分批(40~70%)加碼。` },
+                    3: { color: '#ff4d4d', text: `🔥 ALL IN —— CCS ${ccs.toFixed(1)} 分，歷史上最極端等級的恐慌性下跌，若有閒置資金，這類時機非常罕見，值得重壓布局。` },
+                };
+                const s = longText[tier] || longText[0];
+                summaryEl.style.color = s.color;
+                summaryEl.innerHTML = `<b>給長期投資人：</b>${s.text}`;
+                cardEl.style.borderLeftColor = s.color;
+            } else {
+                const swingText = {
+                    0: { color: '#7f8c8d', text: '⚪ 持有／續抱 —— 距最近低點反彈還不到15%，恐慌尚未確認結束，戰術部位照原訂比例繼續操作即可。' },
+                    1: { color: '#3498db', text: '💰 減碼停利 —— 已反彈15%以上，但還沒連續3天站穩年線，趨勢仍不明朗，建議先落袋一部分獲利，剩下的等趨勢確認。' },
+                    2: { color: '#2ecc71', text: '📈 加碼確認／趨勢站穩 —— 已連續3天站上年線(MA240)，代表空頭結構結束、回到多頭格局，這是趨勢確認訊號，可以續抱或加碼，並非出場訊號（歷史回測：此後中位數1年還有+15%、2年+37%）。' },
+                };
+                const s = swingText[stage] || swingText[0];
+                summaryEl.style.color = s.color;
+                summaryEl.innerHTML = `<b>給波段操作者：</b>${s.text}`;
+                cardEl.style.borderLeftColor = s.color;
+            }
+        }
+
+        renderSummary(currentMode);
+        document.getElementById('mode-btn-long').addEventListener('click', () => {
+            currentMode = 'long';
+            try { localStorage.setItem('dashboardMode', currentMode); } catch (e) {}
+            renderSummary(currentMode);
+        });
+        document.getElementById('mode-btn-swing').addEventListener('click', () => {
+            currentMode = 'swing';
+            try { localStorage.setItem('dashboardMode', currentMode); } catch (e) {}
+            renderSummary(currentMode);
+        });
+
         myChart.showLoading({
             text: '數據加載中...',
             color: '#4ea397',
@@ -268,7 +389,6 @@
                 badgeEl.style.background = meta.bg;
                 document.getElementById('status-allocation').textContent =
                     `${latest.date} 收盤 ${latest.close.toFixed(0)} 點　${allocText[latest.tier]}`;
-                document.getElementById('status-card').style.borderLeftColor = meta.color;
 
                 // 加碼確認狀態：反彈幅度 + 是否連續3天站回年線
                 const exitMeta = {
@@ -284,6 +404,9 @@
                 document.getElementById('status-exit-detail').textContent =
                     `距最近低點反彈 ${latest.recovery_pct.toFixed(1)}%　` +
                     (latest.close > latest.ma240 ? '已站回年線(MA240)之上' : '尚未站回年線(MA240)');
+
+                latestData = latest;
+                renderSummary(currentMode);
 
                 const tableBody = document.getElementById('dataTableBody');
                 [...periods].reverse().forEach(p => {
