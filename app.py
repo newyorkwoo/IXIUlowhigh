@@ -13,6 +13,28 @@ app = Flask(__name__)
 
 _cached_response = None
 
+def _repair_missing_daily_bars(ticker, df):
+    """Yahoo occasionally returns a daily bar with NaN OHLC (Volume still
+    present) for a date that already has real intraday trades. Rebuild
+    those bars from 5-minute (falling back to hourly) intraday data
+    instead of just dropping days we actually have prices for."""
+    missing_dates = df.index[df['Open'].isna()]
+    for ts in missing_dates:
+        day_start = ts.strftime('%Y-%m-%d')
+        day_end = (ts + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+        intraday = pd.DataFrame()
+        for interval in ('5m', '1h'):
+            intraday = ticker.history(start=day_start, end=day_end, interval=interval)
+            if not intraday.empty:
+                break
+        if intraday.empty:
+            continue
+        df.loc[ts, 'Open'] = intraday['Open'].iloc[0]
+        df.loc[ts, 'High'] = intraday['High'].max()
+        df.loc[ts, 'Low'] = intraday['Low'].min()
+        df.loc[ts, 'Close'] = intraday['Close'].iloc[-1]
+    return df
+
 def fetch_and_cache():
     global _cached_response
     print("正在更新指數資料...")
@@ -33,7 +55,12 @@ def build_response():
     # Fetch Nasdaq data from 1998 to allow 240-day MA and RSI60 to warm up
     ticker = yf.Ticker('^IXIC')
     df = ticker.history(start='1998-01-01')
-    
+
+    df = _repair_missing_daily_bars(ticker, df)
+    # Any day still missing OHLC (e.g. today's still-open session) has no
+    # usable price data at all; drop it so the response stays valid JSON.
+    df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
+
     if df.empty:
         return {"kline": [], "drawdown_periods": []}
         
