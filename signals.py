@@ -53,11 +53,12 @@ def _percentile_rank(value, sorted_population):
 
 def compute_ccs(df):
     """df 需含 Close/High/Low/VIX/RSI60/MA240 欄位（依交易日排序），
-    回傳新增 CCS / RecoveryPct / ExitStage 欄位後的 df。"""
+    回傳新增 CCS / RecoveryPct / ExitStage / LegPeakIdx 欄位後的 df。"""
     n = len(df)
     ccs = [0.0] * n
     recovery_pct = [0.0] * n
     exit_stage = [0] * n
+    leg_peak_idx = [0] * n  # 當天所屬波段的高點位置，給信用利差等參考資訊用
 
     vix = df['VIX'].values
     rsi60 = df['RSI60'].values
@@ -122,6 +123,7 @@ def compute_ccs(df):
 
         c_vix_peak_in_leg = max(c_vix_peak_in_leg, vix[i])
         c_rsi_min_in_leg = min(c_rsi_min_in_leg, rsi60[i])
+        leg_peak_idx[i] = c_peak_idx
 
         drop_days = i - c_peak_idx
         drop_pct = (close[i] - c_peak_val) / c_peak_val
@@ -156,6 +158,7 @@ def compute_ccs(df):
     df['CCS'] = ccs
     df['RecoveryPct'] = recovery_pct
     df['ExitStage'] = exit_stage
+    df['LegPeakIdx'] = leg_peak_idx
     return df
 
 

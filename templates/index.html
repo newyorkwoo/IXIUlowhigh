@@ -123,6 +123,23 @@
             border-radius: 8px;
             background: rgba(255,255,255,0.04);
         }
+        #credit-ref {
+            width: 100%;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #bbb;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px dashed #555;
+        }
+        #credit-ref[hidden] {
+            display: none;
+        }
+        #credit-ref .credit-note {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
         #status-exit-badge {
             font-size: 20px;
             font-weight: bold;
@@ -198,6 +215,10 @@
                 font-size: 13px;
                 padding: 10px 12px;
             }
+            #credit-ref {
+                font-size: 12px;
+                padding: 8px 10px;
+            }
             #table-scroll {
                 width: auto;
                 margin: 20px 10px;
@@ -229,6 +250,7 @@
                 <div id="status-allocation" style="margin-top: 8px;"></div>
             </div>
         </div>
+        <div id="credit-ref">信用利差資料載入中...</div>
         <div id="exit-block" class="status-metric-row" hidden>
             <div>
                 <div id="status-exit-badge">載入中...</div>
@@ -284,6 +306,7 @@
                     <th style="padding: 12px;">谷底前5日 VIX 變化</th>
                     <th style="padding: 12px;">RSI60 變化 (起跌 -> 最低)</th>
                     <th style="padding: 12px;">谷底前5日 RSI60 變化</th>
+                    <th style="padding: 12px;">信用利差 (起跌 -> 最高)</th>
                     <th style="padding: 12px; color: #ffcc00;">CCS 複合投降分數</th>
                     <th style="padding: 12px; color: #00da3c;">金字塔資金分配建議</th>
                 </tr>
@@ -311,6 +334,8 @@
             // 長期投資人只看 CCS，波段操作者只看加碼確認，兩個區塊不同時出現
             document.getElementById('ccs-block').hidden = mode !== 'long';
             document.getElementById('exit-block').hidden = mode !== 'swing';
+            // 信用利差是「子彈要不要放慢分批」的參考，只跟長期投資人的 CCS 一起出現
+            document.getElementById('credit-ref').hidden = mode !== 'long';
 
             if (!latestData) return;
             const tier = latestData.tier || 0;
@@ -405,6 +430,24 @@
                     `距最近低點反彈 ${latest.recovery_pct.toFixed(1)}%　` +
                     (latest.close > latest.ma240 ? '已站回年線(MA240)之上' : '尚未站回年線(MA240)');
 
+                // 信用利差參考 (不計入 CCS)：本波段高點以來利差擴大多少
+                const creditEl = document.getElementById('credit-ref');
+                const credit = data.credit;
+                if (!credit) {
+                    creditEl.textContent = '🏦 信用利差參考：資料暫時無法取得（不影響 CCS 判讀）';
+                } else {
+                    const w = credit.widen;
+                    const sign = w > 0 ? '+' : '';
+                    const status = credit.warn
+                        ? `<b style="color:#ff6b6b">🔴 信用市場明顯惡化</b>：利差已擴大 ≥${credit.warn_threshold.toFixed(1)} 個百分點，若 CCS 觸發，子彈建議放慢分批`
+                        : `<b style="color:#4ea397">🟢 信用市場未明顯惡化</b>`;
+                    creditEl.innerHTML =
+                        `🏦 <b>信用利差參考</b>（Baa 公司債 − 10年公債，${credit.latest_date}）：<b>${credit.latest_value.toFixed(2)}%</b>，` +
+                        `本波段高點日 ${credit.leg_peak_date} 以來 <b>${sign}${w.toFixed(2)}</b> 個百分點　${status}` +
+                        `<div class="credit-note">僅供參考、不計入 CCS 分數。歷史上 CCS 觸發時利差已擴大 ≥0.5 個百分點的 3 次（2008/3、2008/10、2020/3），之後再跌中位數 −11.7%，其他時候 −6.6%，樣本很少。` +
+                        `另外 2000~02 網路泡沫期間，CCS 觸發當下利差多半只擴大 0.25 個百分點以內，之後指數卻仍再跌 18~22%——利差平穩不代表安全。</div>`;
+                }
+
                 latestData = latest;
                 renderSummary(currentMode);
 
@@ -423,6 +466,14 @@
                     
                     const finalVixColor = finalVixDiff >= 10 ? '#ff4d4d' : (finalVixDiff >= 5 ? '#f39c12' : '#ccc');
                     const finalRsiColor = finalRsiDiff <= -10 ? '#00d2ff' : (finalRsiDiff <= -5 ? '#f39c12' : '#ccc');
+
+                    let spreadCell = '—';
+                    let spreadColor = '#ccc';
+                    if (p.spread_start != null && p.spread_max != null) {
+                        const spreadDiff = p.spread_max - p.spread_start;
+                        spreadColor = spreadDiff >= 0.5 ? '#ff4d4d' : '#ccc';
+                        spreadCell = `${p.spread_start.toFixed(2)} &rarr; ${p.spread_max.toFixed(2)} <br><span style="font-size:0.85em;">(+${spreadDiff.toFixed(2)})</span>`;
+                    }
 
                     const ccs = p.ccs || 0;
                     let ccsColor = '#ccc';
@@ -460,6 +511,7 @@
                         <td style="padding: 10px; color: ${finalVixColor};">${(p.final_vix_5d_start || 0).toFixed(1)} &rarr; ${(p.final_vix_5d_end || 0).toFixed(1)} <br><span style="font-size:0.85em;">(${(finalVixDiff > 0 ? '+' : '')}${finalVixDiff.toFixed(1)})</span></td>
                         <td style="padding: 10px; color: ${rsiColor};">${(p.rsi_start || 0).toFixed(1)} 殺至 <strong>${(p.rsi_min || 0).toFixed(1)}</strong></td>
                         <td style="padding: 10px; color: ${finalRsiColor};">${(p.final_rsi_5d_start || 0).toFixed(1)} &rarr; ${(p.final_rsi_5d_end || 0).toFixed(1)} <br><span style="font-size:0.85em;">(${(finalRsiDiff > 0 ? '+' : '')}${finalRsiDiff.toFixed(1)})</span></td>
+                        <td style="padding: 10px; color: ${spreadColor};">${spreadCell}</td>
                         <td style="padding: 10px; color: ${ccsColor}; font-weight: ${ccsWeight}; font-size: 1.1em; background-color: rgba(255,255,255,0.05); border-radius: 4px;">
                             ${ccs.toFixed(1)}<br><span style="font-size:0.75em; color: #fff; font-weight: normal;">${ccsBadge}</span>
                         </td>

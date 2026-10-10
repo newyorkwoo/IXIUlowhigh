@@ -1,3 +1,6 @@
+import io
+import urllib.request
+
 from flask import Flask, jsonify, render_template
 import yfinance as yf
 import pandas as pd
@@ -34,6 +37,26 @@ def _repair_missing_daily_bars(ticker, df):
         df.loc[ts, 'Low'] = intraday['Low'].min()
         df.loc[ts, 'Close'] = intraday['Close'].iloc[-1]
     return df
+
+# 信用利差（僅供參考，不計入 CCS）：Moody's Baa 公司債殖利率 - 10年期公債殖利率。
+# FRED 的高收益債利差 (BAMLH0A0HYM2) 只開放最近 3 年，所以用 1986 年起都有的 BAA10Y。
+CREDIT_SPREAD_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAA10Y'
+# 樣本外研究：CCS 觸發時利差已比波段高點日擴大 >=0.5 個百分點的 3 次 (2008/3、2008/10、2020/3)，
+# 之後再跌中位數 -11.7%，其他時候 -6.6%。樣本很少，只當「分批放慢」的提醒。
+CREDIT_WIDEN_WARN = 0.5
+
+
+def fetch_credit_spread():
+    """回傳以日期為索引的 BAA10Y Series；抓不到就回傳 None，儀表板照常運作。"""
+    try:
+        with urllib.request.urlopen(CREDIT_SPREAD_URL, timeout=15) as resp:
+            raw = resp.read().decode('utf-8')
+        s = pd.read_csv(io.StringIO(raw), na_values='.', index_col=0, parse_dates=True).iloc[:, 0]
+        return s.dropna().astype(float)
+    except Exception as e:
+        print(f"信用利差資料抓取失敗：{e}")
+        return None
+
 
 def fetch_and_cache():
     global _cached_response
@@ -322,6 +345,37 @@ def build_response():
     for p in drawdown_periods:
         p['ccs'] = float(ccs_by_date.get(p['end_date'], 0.0))
 
+    # --- 信用利差參考資訊 (不影響 CCS / tier) ---
+    credit = None
+    spread_series = fetch_credit_spread()
+    if spread_series is not None and not spread_series.empty:
+        dates = df[date_col]
+        spread = spread_series.reindex(spread_series.index.union(dates)).ffill().reindex(dates).values
+        df['Spread'] = spread
+        spread_by_date = dict(zip(df['DateStr'], df['Spread']))
+        for p in drawdown_periods:
+            window = df[(df['DateStr'] >= p['start_date']) & (df['DateStr'] <= p['end_date'])]['Spread'].dropna()
+            start = spread_by_date.get(p['start_date'])
+            if window.empty or start is None or pd.isna(start):
+                continue
+            p['spread_start'] = float(start)
+            p['spread_max'] = float(window.max())
+
+        last = df.iloc[-1]
+        peak_row = df.iloc[int(last['LegPeakIdx'])]
+        if not pd.isna(last['Spread']) and not pd.isna(peak_row['Spread']):
+            widen = float(last['Spread'] - peak_row['Spread'])
+            credit = {
+                'source': 'FRED BAA10Y (Moody\'s Baa 公司債 - 10年公債)',
+                'latest_date': spread_series.index[-1].strftime('%Y-%m-%d'),
+                'latest_value': float(spread_series.iloc[-1]),
+                'leg_peak_date': peak_row['DateStr'],
+                'leg_peak_value': float(peak_row['Spread']),
+                'widen': widen,
+                'warn': widen >= CREDIT_WIDEN_WARN,
+                'warn_threshold': CREDIT_WIDEN_WARN,
+            }
+
     kline_data = []
     for _, row in df.iterrows():
         kline_data.append({
@@ -346,7 +400,8 @@ def build_response():
 
     return {
         "kline": kline_data,
-        "drawdown_periods": drawdown_periods
+        "drawdown_periods": drawdown_periods,
+        "credit": credit,
     }
 
 if __name__ == '__main__':
